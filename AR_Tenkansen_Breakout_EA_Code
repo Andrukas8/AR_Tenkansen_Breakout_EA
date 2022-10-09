@@ -46,6 +46,8 @@ int SenkouspanB;
 
 int handleIchimoku;
 
+string text;
+
 CTrade trade;
 
 
@@ -101,13 +103,20 @@ void closeAllPositions()
 void OnTick()
   {
 //---
-   Print("=========================================");
+
+   text = "";
+
    static datetime timeStamp;
 
-   datetime time = iTime(_Symbol,PERIOD_CURRENT,0);
+
 
    ClosePrice_1 = iClose(_Symbol,PERIOD_CURRENT,1);
    ClosePrice_2 = iClose(_Symbol,PERIOD_CURRENT,2);
+   ClosePrice_3 = iClose(_Symbol,PERIOD_CURRENT,3);
+
+   datetime time = iTime(_Symbol,PERIOD_CURRENT,0);
+
+   text += "\n" + time + "\n" + "Close Price 1 = " + ClosePrice_1 + "\n" + "Close Price 2 = " + ClosePrice_2 + "\n" + "Close Price 3 = " + ClosePrice_3 + "\n";
 
    if(timeStamp != time)
      {
@@ -123,6 +132,8 @@ void OnTick()
 
       double ChikouspanArr[];
 
+      double spreadPos = (double)SymbolInfoInteger(Symbol(),SYMBOL_SPREAD);
+
       CopyBuffer(handleIchimoku,0,0,3,TenkansenArr);
       CopyBuffer(handleIchimoku,1,0,3,KijunsenArr);
       CopyBuffer(handleIchimoku,2,0,3,SenkouspanAArr);
@@ -133,15 +144,8 @@ void OnTick()
 
       CopyBuffer(handleIchimoku,4,Kijunsen,1,ChikouspanArr);
 
-      Comment("\nTenkansen = ",TenkansenArr[0],"\nKijunsen = ",KijunsenArr[0],"\nShiftedSenkouspanA = ",ShiftedSenkouspanAArr[0],"\nSenkouspanB = ",SenkouspanBArr[0],"\nChikouspan = ", ChikouspanArr[0]);
 
-      //--- obtain spread from the symbol properties  --- not used in program
-      bool spreadfloat=SymbolInfoInteger(Symbol(),SYMBOL_SPREAD_FLOAT);
-      string comm=StringFormat("Spread %s = %I64d points\r\n",
-                               spreadfloat?"floating":"fixed",
-                               SymbolInfoInteger(Symbol(),SYMBOL_SPREAD));
 
-      //---
 
       double ask = SymbolInfoDouble(_Symbol,SYMBOL_ASK);
       double bid = SymbolInfoDouble(_Symbol,SYMBOL_BID);
@@ -150,11 +154,18 @@ void OnTick()
       double slBuy = iLow(_Symbol,PERIOD_CURRENT,2);
       double slSell = iHigh(_Symbol,PERIOD_CURRENT,2);
 
+
+
       double ask_tp = ask + RiskToReward * (ask - slBuy);
       double bid_tp = bid - RiskToReward * (slSell - bid);
 
       int SlPointsBuy = (int)MathCeil((MathAbs(last - slBuy)) / _Point);
       int SlPointsSell = (int)MathCeil((MathAbs(last - slSell)) / _Point);
+
+      Print(TenkansenArr[0] + "\n" + TenkansenArr[1] + "\n" + TenkansenArr[2]);
+
+      Print("Low = ", slBuy," High = ",slSell);
+
 
       // % Risk Position Size
       double AccountBalance = NormalizeDouble(AccountInfoDouble(ACCOUNT_BALANCE),2);
@@ -163,23 +174,27 @@ void OnTick()
       double LotsBuy  = NormalizeDouble(AmountToRisk/(SlPointsBuy)/ValuePp,2);
       double LotsSell = NormalizeDouble(AmountToRisk/(SlPointsSell)/ValuePp,2);
 
+      text += "\nAccountBalance = " + AccountBalance + "\nAmountToRisk = " + AmountToRisk + "\nValuePp = " + ValuePp + "\nLotsBuy = " + LotsBuy + "\nLotsSell" + LotsSell + "\n";
+
       // Indicator Signals
       double Bar26High = iHigh(_Symbol,PERIOD_CURRENT,Kijunsen);
       double Bar26Low = iLow(_Symbol,PERIOD_CURRENT,Kijunsen);
       double CurrentHigh = iHigh(_Symbol,PERIOD_CURRENT,0);
       double CurrentLow = iLow(_Symbol,PERIOD_CURRENT,0);
 
+      text += "\nBar26High = " + Bar26High + "\nBar26Low = " + Bar26Low + "\nCurrentHigh = " + CurrentHigh + "\nCurrentLow = " + CurrentLow + "\n";
+
       int Number_of_Positions =  PositionsTotal();
 
       // Close Position on Kijunsen Cross
       if(
          (
-            (Close_Pos_Kijunsen == true) &&
+            (Close_Pos_Kijunsen) &&
             (last > KijunsenArr[0]) &&
             (SellSignal_1 == true)
          ) ||
          (
-            (Close_Pos_Kijunsen == true) &&
+            (Close_Pos_Kijunsen) &&
             (last < KijunsenArr[0]) &&
             (BuySignal_1 == true))
       )
@@ -193,12 +208,12 @@ void OnTick()
       // Close Position on Tenkansen Cross
       if(
          (
-            (Close_Pos_Tenkansen == true) &&
+            (Close_Pos_Tenkansen) &&
             (last > TenkansenArr[0]) &&
             (SellSignal_1 == true)
          ) ||
          (
-            (Close_Pos_Tenkansen == true) &&
+            (Close_Pos_Tenkansen) &&
             (last < TenkansenArr[0]) &&
             (BuySignal_1 == true))
       )
@@ -209,21 +224,30 @@ void OnTick()
         }
 
 
+
+      text += "\nTenkansenArr[2] = " + TenkansenArr[2] + "\nKijunsenArr[2]" + KijunsenArr[2] + "\n";
+
+      text += "\nTenkansenArr[1] = " + TenkansenArr[1] + "\nKijunsenArr[2]" + KijunsenArr[1] + "\n";
+
+      text += "\nTenkansenArr[0] = " + TenkansenArr[0] + "\nKijunsenArr[0]" + KijunsenArr[0] + "\n";
+
+
       // BUY Trades
 
       // Buy Signal
 
-      if((TenkansenArr[0] > KijunsenArr[0]) && (ask > KijunsenArr[0]))
+      if(TenkansenArr[2] > KijunsenArr[2])
         {
          Print("Buy Cross");
          BuySignal_1 = true; // TK Cross
+         SellSignal_1 = false; // cancelling sell signal
          if(Close_Pos_TK_Cross && (Number_of_Positions > 0 && SellSignal_1 == true))
            {
             Print("Closing Position on TK/KT Cross = ",Close_Pos_TK_Cross);
             closeAllPositions();
            }
-         SellSignal_1 = false; // cancelling sell signal
         }
+
 
       if(ChikouspanArr[0] > Bar26High) // Chikou span above prices
         {
@@ -231,9 +255,8 @@ void OnTick()
          SellSignal_2 = false;
         }
       else
-        {
          BuySignal_2 = false;
-        }
+
 
       if((ShiftedSenkouspanAArr[0] > ShiftedSenkouspanBArr[0])) // Kumo green
         {
@@ -242,7 +265,7 @@ void OnTick()
         }
 
 
-      if(ClosePrice_2 < TenkansenArr[2] && ClosePrice_1 > TenkansenArr[1] && ClosePrice_2 > KijunsenArr[2]) // <<<<<<<<<<<<<<<<<<<<<<<< Buy Signal
+      if(ClosePrice_2 < TenkansenArr[0] && ClosePrice_1 > TenkansenArr[1] && ClosePrice_2 > KijunsenArr[0]) // <<<<<<<<<<<<<<<<<<<<<<<< Buy Signal
         {
          BuySignal_4 = true;
          SellSignal_4 = false;
@@ -266,7 +289,9 @@ void OnTick()
 
       // SELL trades
 
-      if((TenkansenArr[0] < KijunsenArr[0]) && (bid < KijunsenArr[0]))
+
+
+      if(TenkansenArr[2] < KijunsenArr[2])
         {
          Print("Sell Cross");
          SellSignal_1 = true; // KT Cross
@@ -297,7 +322,7 @@ void OnTick()
         }
 
 
-      if(ClosePrice_2 > TenkansenArr[2] && ClosePrice_1 < TenkansenArr[1] && ClosePrice_2 < KijunsenArr[2]) // <<<<<<<<<<<<<<<<<<<<<<<< Buy Signal
+      if(ClosePrice_2 > TenkansenArr[0] && ClosePrice_1 < TenkansenArr[1] && ClosePrice_2 < KijunsenArr[0]) // <<<<<<<<<<<<<<<<<<<<<<<< Sell Signal
         {
          BuySignal_4 = false;
          SellSignal_4 = true;
@@ -320,8 +345,19 @@ void OnTick()
 
       Print(BuySignal_1," ",BuySignal_2," ",BuySignal_3," ",BuySignal_4," ",BuySignal_GO,"\n",SellSignal_1," ",SellSignal_2," ",SellSignal_3," ",SellSignal_3," ",SellSignal_GO);
 
-     }
+      text += "\nShiftedSenkouspanAArr[0] = " + ShiftedSenkouspanAArr[0] + "\nShiftedSenkouspanBArr[0] = " + ShiftedSenkouspanBArr[0] + "\n";
 
+      text += "\n Buy Signels  = " + BuySignal_1 + " " + BuySignal_2 + " " + BuySignal_3 + " " + BuySignal_4 + " " + BuySignal_GO + "\n";
+
+      text += "\n Sell Signals = " + SellSignal_1 + " " + SellSignal_2 + " " + SellSignal_3 + " " + SellSignal_3 + " " + SellSignal_GO + "\n";
+
+
+
+      Comment(text);
+
+      text = "";
+
+     } // timestamp
 
   } // OnTick
 //+------------------------------------------------------------------+
