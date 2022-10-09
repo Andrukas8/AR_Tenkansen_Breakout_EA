@@ -14,15 +14,13 @@ input int IchimokuMultiplier = 1;
 
 input group "Trade settings";
 input double PercentRisk = 2;
-input double MinSLPoints = 50;
-input double RiskToReward = 1.5;
+input double MinSLPoints = 10;
+input double RiskToReward = 1;
 
 input group "Position Management";
 input bool Close_Pos_Kijunsen = false;
 input bool Close_Pos_Tenkansen = false;
 input bool Close_Pos_TK_Cross = false;
-
-
 
 bool BuySignal_1 = false;
 bool BuySignal_2 = false;
@@ -103,12 +101,9 @@ void closeAllPositions()
 void OnTick()
   {
 //---
-
    text = "";
 
    static datetime timeStamp;
-
-
 
    ClosePrice_1 = iClose(_Symbol,PERIOD_CURRENT,1);
    ClosePrice_2 = iClose(_Symbol,PERIOD_CURRENT,2);
@@ -144,8 +139,8 @@ void OnTick()
 
       CopyBuffer(handleIchimoku,4,Kijunsen,1,ChikouspanArr);
 
-
-
+      SellSignal_1 = SellSignal_2 = SellSignal_3 = SellSignal_4 = SellSignal_GO = false;
+      BuySignal_1 = BuySignal_2 = BuySignal_3 = BuySignal_4 = BuySignal_GO = false;
 
       double ask = SymbolInfoDouble(_Symbol,SYMBOL_ASK);
       double bid = SymbolInfoDouble(_Symbol,SYMBOL_BID);
@@ -153,8 +148,6 @@ void OnTick()
 
       double slBuy = iLow(_Symbol,PERIOD_CURRENT,2);
       double slSell = iHigh(_Symbol,PERIOD_CURRENT,2);
-
-
 
       double ask_tp = ask + RiskToReward * (ask - slBuy);
       double bid_tp = bid - RiskToReward * (slSell - bid);
@@ -165,7 +158,6 @@ void OnTick()
       Print(TenkansenArr[0] + "\n" + TenkansenArr[1] + "\n" + TenkansenArr[2]);
 
       Print("Low = ", slBuy," High = ",slSell);
-
 
       // % Risk Position Size
       double AccountBalance = NormalizeDouble(AccountInfoDouble(ACCOUNT_BALANCE),2);
@@ -223,14 +215,9 @@ void OnTick()
          closeAllPositions();
         }
 
-
-
       text += "\nTenkansenArr[2] = " + TenkansenArr[2] + "\nKijunsenArr[2]" + KijunsenArr[2] + "\n";
-
       text += "\nTenkansenArr[1] = " + TenkansenArr[1] + "\nKijunsenArr[2]" + KijunsenArr[1] + "\n";
-
       text += "\nTenkansenArr[0] = " + TenkansenArr[0] + "\nKijunsenArr[0]" + KijunsenArr[0] + "\n";
-
 
       // BUY Trades
 
@@ -257,7 +244,6 @@ void OnTick()
       else
          BuySignal_2 = false;
 
-
       if((ShiftedSenkouspanAArr[0] > ShiftedSenkouspanBArr[0])) // Kumo green
         {
          BuySignal_3 = true;
@@ -272,7 +258,7 @@ void OnTick()
         }
 
 
-      if(BuySignal_1 && BuySignal_2 && BuySignal_3 && BuySignal_4 && (CurrentHigh > SenkouspanBArr[0]) && (Number_of_Positions == 0))
+      if(BuySignal_1 && BuySignal_2 && BuySignal_3 && BuySignal_4 && Number_of_Positions == 0 && CurrentHigh > SenkouspanBArr[0])
         {
          BuySignal_GO = true;
          SellSignal_GO = false;
@@ -280,16 +266,11 @@ void OnTick()
 
       if(BuySignal_GO && SlPointsBuy > MinSLPoints)
         {
-         BuySignal_1 = BuySignal_2 = BuySignal_3 = BuySignal_GO = false;
-         SellSignal_1 = SellSignal_2 = SellSignal_3 = SellSignal_GO = false;
-
          Print(__FUNCTION__," > Buy signal ",BuySignal_GO);
          trade.Buy(LotsBuy,_Symbol,ask,slBuy,ask_tp,"This is a BUY trade");
         }
 
       // SELL trades
-
-
 
       if(TenkansenArr[2] < KijunsenArr[2])
         {
@@ -328,7 +309,7 @@ void OnTick()
          SellSignal_4 = true;
         }
 
-      if(SellSignal_1 && SellSignal_2 && SellSignal_3 && BuySignal_4 && (CurrentLow < SenkouspanBArr[0]) && (Number_of_Positions == 0))
+      if(SellSignal_1 && SellSignal_2 && SellSignal_3 && BuySignal_4 && Number_of_Positions == 0 && CurrentLow < SenkouspanBArr[0])
         {
          SellSignal_GO = true;
          BuySignal_GO = false;
@@ -336,8 +317,6 @@ void OnTick()
 
       if(SellSignal_GO && SlPointsSell > MinSLPoints)
         {
-         SellSignal_1 = SellSignal_2 = SellSignal_3 = SellSignal_4 = SellSignal_GO = false;
-         BuySignal_1 = BuySignal_2 = BuySignal_3 = BuySignal_4 = BuySignal_GO = false;
 
          Print(__FUNCTION__," > Sell signal ",SellSignal_GO);
          trade.Sell(LotsSell,_Symbol,bid,slSell,bid_tp,"This is a SELL trade");
@@ -346,12 +325,8 @@ void OnTick()
       Print(BuySignal_1," ",BuySignal_2," ",BuySignal_3," ",BuySignal_4," ",BuySignal_GO,"\n",SellSignal_1," ",SellSignal_2," ",SellSignal_3," ",SellSignal_3," ",SellSignal_GO);
 
       text += "\nShiftedSenkouspanAArr[0] = " + ShiftedSenkouspanAArr[0] + "\nShiftedSenkouspanBArr[0] = " + ShiftedSenkouspanBArr[0] + "\n";
-
       text += "\n Buy Signels  = " + BuySignal_1 + " " + BuySignal_2 + " " + BuySignal_3 + " " + BuySignal_4 + " " + BuySignal_GO + "\n";
-
       text += "\n Sell Signals = " + SellSignal_1 + " " + SellSignal_2 + " " + SellSignal_3 + " " + SellSignal_3 + " " + SellSignal_GO + "\n";
-
-
 
       Comment(text);
 
