@@ -117,6 +117,9 @@ void OnTick()
      {
       timeStamp = time;
 
+      BuySignal_4 = false;
+      SellSignal_4 = false;
+
       double TenkansenArr[];
       double KijunsenArr[];
       double SenkouspanAArr[];
@@ -139,9 +142,6 @@ void OnTick()
 
       CopyBuffer(handleIchimoku,4,Kijunsen,1,ChikouspanArr);
 
-      SellSignal_1 = SellSignal_2 = SellSignal_3 = SellSignal_4 = SellSignal_GO = false;
-      BuySignal_1 = BuySignal_2 = BuySignal_3 = BuySignal_4 = BuySignal_GO = false;
-
       double ask = SymbolInfoDouble(_Symbol,SYMBOL_ASK);
       double bid = SymbolInfoDouble(_Symbol,SYMBOL_BID);
       double last = SymbolInfoDouble(_Symbol,SYMBOL_LAST);
@@ -152,8 +152,15 @@ void OnTick()
       double ask_tp = ask + RiskToReward * (ask - slBuy);
       double bid_tp = bid - RiskToReward * (slSell - bid);
 
-      int SlPointsBuy = (int)MathCeil((MathAbs(last - slBuy)) / _Point);
-      int SlPointsSell = (int)MathCeil((MathAbs(last - slSell)) / _Point);
+      double bufferSLPoints = 0;
+
+      if(MinSLPoints > spreadPos)
+         bufferSLPoints = MinSLPoints;
+      else
+         bufferSLPoints = spreadPos;
+
+      int SlPointsBuy = (int)MathCeil((MathAbs(last - slBuy)) / _Point) - (bufferSLPoints);
+      int SlPointsSell = (int)MathCeil((MathAbs(last - slSell)) / _Point) + (bufferSLPoints);
 
       Print(TenkansenArr[0] + "\n" + TenkansenArr[1] + "\n" + TenkansenArr[2]);
 
@@ -163,10 +170,20 @@ void OnTick()
       double AccountBalance = NormalizeDouble(AccountInfoDouble(ACCOUNT_BALANCE),2);
       double AmountToRisk = NormalizeDouble(AccountBalance*PercentRisk/100,2);
       double ValuePp  = SymbolInfoDouble(_Symbol,SYMBOL_TRADE_TICK_VALUE);
-      double LotsBuy  = NormalizeDouble(AmountToRisk/(SlPointsBuy)/ValuePp,2);
-      double LotsSell = NormalizeDouble(AmountToRisk/(SlPointsSell)/ValuePp,2);
 
-      text += "\nAccountBalance = " + AccountBalance + "\nAmountToRisk = " + AmountToRisk + "\nValuePp = " + ValuePp + "\nLotsBuy = " + LotsBuy + "\nLotsSell" + LotsSell + "\n";
+      double LotsBuy  = 0;
+      double LotsSell = 0;
+
+      LotsBuy = (SlPointsBuy > 0) ? NormalizeDouble(AmountToRisk/(SlPointsBuy)/ValuePp,2) : 0;
+      LotsSell = (SlPointsSell > 0) ? NormalizeDouble(AmountToRisk/(SlPointsSell)/ValuePp,2) : 0;
+
+      text += "SlPointsBuy = " + SlPointsBuy + "\n";
+      text += "SlPointsBuy = " + SlPointsSell + "\n";
+      text += "\nMinSLPoints = " + MinSLPoints + "\n";
+      text += "\nSpread = " + spreadPos + "\n";
+      text += "\nAccountBalance = " + AccountBalance + "\nAmountToRisk = " + AmountToRisk + "\nValuePp = " + ValuePp + "\nLotsBuy = " + LotsBuy + "\nLotsSell = " + LotsSell + "\n";
+      text += "\nbufferSLPoints = " + bufferSLPoints + "\n";
+      text += "\nLotsBuy = " + LotsBuy + "\nLotsSell = " + LotsSell + "\n";
 
       // Indicator Signals
       double Bar26High = iHigh(_Symbol,PERIOD_CURRENT,Kijunsen);
@@ -264,10 +281,11 @@ void OnTick()
          SellSignal_GO = false;
         }
 
-      if(BuySignal_GO && SlPointsBuy > MinSLPoints)
+      if(BuySignal_GO && SlPointsBuy > bufferSLPoints)
         {
          Print(__FUNCTION__," > Buy signal ",BuySignal_GO);
          trade.Buy(LotsBuy,_Symbol,ask,slBuy,ask_tp,"This is a BUY trade");
+         BuySignal_GO = false;
         }
 
       // SELL trades
@@ -315,11 +333,11 @@ void OnTick()
          BuySignal_GO = false;
         }
 
-      if(SellSignal_GO && SlPointsSell > MinSLPoints)
+      if(SellSignal_GO && SlPointsSell > bufferSLPoints)
         {
-
          Print(__FUNCTION__," > Sell signal ",SellSignal_GO);
          trade.Sell(LotsSell,_Symbol,bid,slSell,bid_tp,"This is a SELL trade");
+         SellSignal_GO = false;
         }
 
       Print(BuySignal_1," ",BuySignal_2," ",BuySignal_3," ",BuySignal_4," ",BuySignal_GO,"\n",SellSignal_1," ",SellSignal_2," ",SellSignal_3," ",SellSignal_3," ",SellSignal_GO);
