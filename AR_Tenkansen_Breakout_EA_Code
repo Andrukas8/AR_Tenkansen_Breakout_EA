@@ -327,7 +327,7 @@ void OnTick()
          SellSignal_4 = true;
         }
 
-      if(SellSignal_1 && SellSignal_2 && SellSignal_3 && BuySignal_4 && Number_of_Positions == 0 && CurrentLow < SenkouspanBArr[0])
+      if(SellSignal_1 && SellSignal_2 && SellSignal_3 && SellSignal_4 && Number_of_Positions == 0 && CurrentLow < SenkouspanBArr[0])
         {
          SellSignal_GO = true;
          BuySignal_GO = false;
